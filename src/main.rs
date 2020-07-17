@@ -1,3 +1,5 @@
+mod error;
+
 #[macro_use]
 extern crate tantivy;
 
@@ -5,11 +7,10 @@ extern crate tantivy;
 extern crate anyhow;
 
 mod indexer;
-
-use clap::Clap;
-
+mod reader;
 use crate::indexer::IndexerRunner;
 use anyhow::Result;
+use clap::Clap;
 use std::path::PathBuf;
 use tracing::{info, Level};
 use tracing_subscriber;
@@ -40,6 +41,7 @@ struct Opts {
 enum SubCommand {
     Index(Index),
     Test,
+    Search(Search),
 }
 
 /// A subcommand for controlling testing
@@ -47,6 +49,14 @@ enum SubCommand {
 struct Index {
     #[clap()]
     project_path: PathBuf,
+}
+
+#[derive(Clap)]
+struct Search {
+    #[clap()]
+    index_path: PathBuf,
+    #[clap()]
+    keyword: String,
 }
 
 fn main() -> Result<()> {
@@ -80,6 +90,9 @@ fn main() -> Result<()> {
             let source_code = "var a=1;";
             let tree = parser.parse(source_code, None).unwrap();
             println!("{}", tree.root_node().to_sexp());
+        }
+        SubCommand::Search(search) => {
+            reader::search(search.index_path, &search.keyword)?;
         }
     }
     return Ok(());
