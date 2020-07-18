@@ -1,4 +1,6 @@
+mod analysis;
 mod error;
+mod languages;
 
 #[macro_use]
 extern crate tantivy;
@@ -53,8 +55,8 @@ struct Index {
 
 #[derive(Clap)]
 struct Search {
-    #[clap()]
-    index_path: PathBuf,
+    #[clap(short, long)]
+    index: PathBuf,
     #[clap()]
     keyword: String,
 }
@@ -92,7 +94,7 @@ fn main() -> Result<()> {
             println!("{}", tree.root_node().to_sexp());
         }
         SubCommand::Search(search) => {
-            reader::search(search.index_path, &search.keyword)?;
+            reader::search(search.index, &search.keyword)?;
         }
     }
     return Ok(());
