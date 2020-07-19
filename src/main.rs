@@ -1,6 +1,5 @@
 mod analysis;
 mod error;
-mod languages;
 
 #[macro_use]
 extern crate tantivy;

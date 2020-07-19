@@ -1,43 +1,62 @@
-mod ts_analyzer;
+mod java;
 
-use crate::languages::Lang;
-use tree_sitter::{Language, Tree, TreeCursor};
+use rust_code_analysis::*;
+use std::marker::PhantomData;
+use tree_sitter::{Language, Parser, Tree, TreeCursor};
 
 extern "C" {
     fn tree_sitter_typescript() -> Language;
 }
 
-trait SemanticAnalysis<L> {
+trait AnalyzerTrait {
+    fn new(code: Vec<u8>) -> Self;
+}
+
+trait LanguageAnalysis {
     fn visit(self);
 }
 
-struct Analyzer<'a> {
-    cursor: TreeCursor<'a>,
+pub struct Analyzer<T: TSLanguage> {
+    code: Vec<u8>,
+    tree: Tree,
+    phantom: PhantomData<T>,
 }
 
-impl<'a> Analyzer<'a> {
-    pub fn new(cursor: TreeCursor<'a>) -> Self {
-        Self { cursor }
+impl<T: 'static + TSLanguage> AnalyzerTrait for Analyzer<T> {
+    fn new(code: Vec<u8>) -> Self {
+        let mut parser = Parser::new();
+        parser.set_language(T::get_language()).unwrap();
+        let tree = parser.parse(&code, None).unwrap();
+        Self {
+            code,
+            tree,
+            phantom: PhantomData,
+        }
     }
 }
+
+pub type JavaAnalyzer = Analyzer<JavaCode>;
+pub type RustAnalyzer = Analyzer<RustCode>;
 
 #[cfg(test)]
 mod test {
     use super::*;
+    use rust_code_analysis::JavaCode;
     use tree_sitter::{Parser, TreeCursor};
 
     #[test]
-    fn test_walker() {
-        let mut parser = Parser::new();
-        let language = unsafe { tree_sitter_typescript() };
-        parser.set_language(language).unwrap();
+    fn test_java() {
+        let source_code = "public class Main {  public void main() {} }";
 
-        let source_code = "function test() { return Math.abs(1) }";
-        let tree = parser.parse(source_code, None).unwrap();
+        let analyzer = JavaAnalyzer::new(Vec::from(source_code));
+        analyzer.visit();
+    }
 
-        let mut cursor = tree.walk();
-        let ts_analyzer = Analyzer::new(cursor);
-        ts_analyzer.visit();
-        println!("{}", tree.root_node().to_sexp());
+    #[test]
+    fn test_rust() {
+        let source_code = "fn test() { return 1 + 1 }";
+
+        let analyzer = RustAnalyzer::new(Vec::from(source_code));
+        analyzer.visit();
     }
 }
