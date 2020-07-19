@@ -1,6 +1,6 @@
 extern crate phf_codegen;
 
-use codegen::{Block, Scope};
+use codegen::Scope;
 use std::collections::hash_map::{Entry, HashMap};
 use std::collections::BTreeMap;
 use std::fs::File;
@@ -9,9 +9,10 @@ use std::path::PathBuf;
 use tree_sitter::Language;
 
 extern "C" {
-    // fn tree_sitter_javascript() -> Language;
+    fn tree_sitter_javascript() -> Language;
     fn tree_sitter_typescript() -> Language;
     fn tree_sitter_tsx() -> Language;
+    fn tree_sitter_java() -> Language;
 }
 
 pub fn sanitize_string(name: &str, escape: bool) -> String {
@@ -159,7 +160,8 @@ impl PartialEq<{}> for u16 {{
     }}
 }}"###,
         lang_name, lang_name, lang_name, lang_name
-    );
+    )
+    .unwrap();
 }
 
 fn gen_str_enum(lang_name: &str, file: &mut BufWriter<File>) {
@@ -181,7 +183,7 @@ fn gen_str_enum(lang_name: &str, file: &mut BufWriter<File>) {
             "{}.get(key).unwrap().clone()",
             lang_name.to_uppercase()
         ));
-    write!(file, "{}\n", scope.to_string());
+    write!(file, "{}\n", scope.to_string()).unwrap();
 }
 
 fn gen_u16_enum(lang_name: &str, file: &mut BufWriter<File>) {
@@ -201,7 +203,7 @@ fn gen_u16_enum(lang_name: &str, file: &mut BufWriter<File>) {
         .arg("value", "u16")
         .ret("Self")
         .line(format!("unsafe {{ std::mem::transmute(value) }}"));
-    write!(file, "{}\n", scope.to_string());
+    write!(file, "{}\n", scope.to_string()).unwrap();
 }
 
 fn gen_enums_str(
@@ -218,7 +220,7 @@ fn gen_enums_str(
         newfn.line(format!("{}::{} => \"{}\",", lang_name, name, ts_name));
     }
     newfn.line("}");
-    write!(file, "{}\n", scope.to_string());
+    write!(file, "{}\n", scope.to_string()).unwrap();
 }
 
 fn gen_map(
@@ -233,13 +235,14 @@ fn gen_map(
         "static {}: phf::Map<&'static str, {}> = ",
         lang_name.to_uppercase(),
         lang_name
-    );
+    )
+    .unwrap();
     for (name, dup, ts_name, _) in names {
         if !dup {
             builder.entry(ts_name.as_str(), format!("{}::{}", c_name, name).as_str());
         }
     }
-    write!(file, "{};\n", builder.build());
+    write!(file, "{};\n", builder.build()).unwrap();
 }
 
 fn gen_enums(
@@ -247,13 +250,13 @@ fn gen_enums(
     file: &mut BufWriter<File>,
     names: &Vec<(String, bool, String, u16)>,
 ) {
-    write!(file, "#[derive(Clone, Debug, PartialEq)]\n");
-    write!(file, "pub enum {} {{ \n", lang_name);
+    write!(file, "#[derive(Clone, Debug, PartialEq)]\n").unwrap();
+    write!(file, "pub enum {} {{ \n", lang_name).unwrap();
 
     for (name, _, _, id) in names {
-        write!(file, "\t {} = {},\n", name, id);
+        write!(file, "\t {} = {},\n", name, id).unwrap();
     }
-    write!(file, "}}\n");
+    write!(file, "}}\n").unwrap();
 }
 
 fn get_tokens(language: &Language) -> Vec<(String, bool, String, u16)> {
@@ -288,12 +291,13 @@ fn get_tokens(language: &Language) -> Vec<(String, bool, String, u16)> {
 
 fn main() {
     let lang_list = vec![
-        // ("Javascript", unsafe { tree_sitter_javascript() }),
+        ("Javascript", unsafe { tree_sitter_javascript() }),
         ("Typescript", unsafe { tree_sitter_typescript() }),
         ("TSX", unsafe { tree_sitter_tsx() }),
+        ("Java", unsafe { tree_sitter_java() }),
     ];
     let mut scope = Scope::new();
-    let mut langs_enum = scope.new_enum("Langs").vis("pub");
+    let langs_enum = scope.new_enum("Langs").vis("pub");
 
     let file = File::create(cwd().join("src/languages").join("langs.rs")).unwrap();
     let mut file = BufWriter::new(file);
@@ -303,5 +307,5 @@ fn main() {
         gen_for_lang(name, &language)
     }
 
-    write!(&mut file, "{}", scope.to_string());
+    write!(&mut file, "{}", scope.to_string()).unwrap();
 }

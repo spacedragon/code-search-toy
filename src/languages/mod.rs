@@ -1,4 +1,5 @@
 pub(crate) mod langs;
+mod language_java;
 mod language_tsx;
 mod language_typescript;
 
